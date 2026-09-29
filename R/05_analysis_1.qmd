@@ -3,6 +3,7 @@ title: "05 Analysis 1 — peptides and HLA"
 format:
   html:
     embed-resources: true
+editor: visual
 ---
 
 What characterises the peptides binding to the HLAs? Save the plot under `results/`.

@@ -3,6 +3,7 @@ title: "00 Run the Lab 5 project"
 format:
   html:
     embed-resources: true
+editor: visual
 ---
 
 Run the whole project from the raw files through both analyses.

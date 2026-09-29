@@ -3,6 +3,7 @@ title: "02 Clean"
 format:
   html:
     embed-resources: true
+editor: visual
 ---
 
 Turn the loaded tables into tidy tables and write `data/02_dat_clean.tsv` and `data/02_dat_clean_meta.tsv`.

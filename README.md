@@ -34,3 +34,13 @@ Put the two csv files in `data/_raw/` and do not edit them. `R/01_load.qmd` shou
 - `doc/lab05_handin.qmd` is the micro-report.
 
 Open `lab05_handin.Rproj` before rendering. Each `.qmd` should run on its own, reading the table written by the previous script.
+
+# Using it from RStudio
+
+This is the workflow from [Lab 7](https://r4bds.github.io/lab07.html).
+
+1. RStudio → New Project → Version Control → Git. Repository URL: `https://github.com/tokiboggle/r4bds-lab05-handin`.
+2. Open every `.qmd` in the Visual editor. Mixing Visual and Source on the same file is what produces the merge conflicts in that lab.
+3. In the Git tab: stage, commit, **Pull**, then Push.
+4. Do new work on a branch named with your student id. Push the branch and open a pull request into `main`.
+5. `data/` and `data/_raw/` are in `.gitignore`. GitHub is for the code, not the csv files. `.RData` and `.Rproj.user` are ignored for the same reason: they belong to one person's session.
