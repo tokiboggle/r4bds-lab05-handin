@@ -1,0 +1,13 @@
+---
+title: "04 Describe"
+format:
+  html:
+    embed-resources: true
+---
+
+Describe the peptides and the CDR3 sequences. Save plots under `results/`.
+
+```{r}
+#| message: false
+
+```

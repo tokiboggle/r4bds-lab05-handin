@@ -1,0 +1,13 @@
+---
+title: "00 Run the Lab 5 project"
+format:
+  html:
+    embed-resources: true
+---
+
+Run the whole project from the raw files through both analyses.
+
+```{r}
+#| message: false
+
+```

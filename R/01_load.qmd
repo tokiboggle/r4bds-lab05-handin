@@ -1,0 +1,13 @@
+---
+title: "01 Load"
+format:
+  html:
+    embed-resources: true
+---
+
+Read the two raw files from `data/_raw/` and write `data/01_dat_load.tsv` and `data/01_dat_load_meta.tsv`. Leave the raw files unchanged.
+
+```{r}
+#| message: false
+
+```

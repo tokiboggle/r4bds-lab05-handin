@@ -1,0 +1,13 @@
+---
+title: "06 Analysis 2 — CDR3 and pMHC"
+format:
+  html:
+    embed-resources: true
+---
+
+What characterises the T-cell receptors binding to the peptide–HLA complexes? Save the plot under `results/`.
+
+```{r}
+#| message: false
+
+```

@@ -1,0 +1,34 @@
+---
+title: "Lab 5 Assignment: Group XX"
+author: "Add names and student ids"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+*Before upload: put the real group number, names, and student ids in the header, render this file, and zip the html. Hand in on one course only.*
+
+# Background
+
+# Aim
+
+1. What characterises the peptides binding to the HLAs?
+2. What characterises the T-cell receptors binding to the peptide–HLA complexes?
+
+# Load libraries
+
+```{r}
+#| message: false
+
+```
+
+# Load data
+
+# Data description
+
+# Analysis
+
+## Peptides
+
+## CDR3 sequences

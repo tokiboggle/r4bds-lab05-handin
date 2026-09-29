@@ -1,0 +1,13 @@
+---
+title: "03 Augment"
+format:
+  html:
+    embed-resources: true
+---
+
+Add the variables the analysis needs and write `data/03_dat_aug.tsv`.
+
+```{r}
+#| message: false
+
+```

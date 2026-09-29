@@ -1,0 +1,10 @@
+data/**
+!data/_raw/
+data/_raw/**
+!data/_raw/.gitkeep
+.Rproj.user/
+.quarto/
+*_cache/
+*_files/
+**/*_cache/
+**/*_files/
