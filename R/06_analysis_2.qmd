@@ -8,7 +8,74 @@ editor: visual
 
 What characterises the T-cell receptors binding to the peptide–HLA complexes? Save the plot under `results/`.
 
+Main logo is the exercise one: CDR3b length 15, allele `A02:01`, peptide `LLFLVLIML`. The extra logo is one other combination (length 14, same allele, peptide `YLQPRTFLL`).
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(ggseqlogo)
+library(here)
+
+dir.create(here("results"), showWarnings = FALSE)
+
+peptide_meta_data <- read_tsv(
+  here("data", "03_dat_aug.tsv"),
+  show_col_types = FALSE
+)
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "CDR3b sequences of length 15 for A02:01 and LLFLVLIML."
+
+cdr3_main <- peptide_meta_data |>
+  filter(
+    k_CDR3b == 15,
+    Allele == "A02:01",
+    peptide == "LLFLVLIML"
+  ) |>
+  distinct(CDR3b) |>
+  pull(CDR3b)
+
+p_cdr3 <- ggseqlogo(cdr3_main, seq_type = "aa")
+
+ggsave(
+  here("results", "logo_cdr3_LLFLVLIML_len15.png"),
+  p_cdr3,
+  width = 7,
+  height = 3.2,
+  dpi = 130
+)
+
+p_cdr3
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "Alternate logo: CDR3b length 14, A02:01, peptide YLQPRTFLL."
+
+cdr3_alt <- peptide_meta_data |>
+  filter(
+    k_CDR3b == 14,
+    Allele == "A02:01",
+    peptide == "YLQPRTFLL"
+  ) |>
+  distinct(CDR3b) |>
+  pull(CDR3b)
+
+p_alt <- ggseqlogo(cdr3_alt, seq_type = "aa")
+
+ggsave(
+  here("results", "logo_cdr3_YLQPRTFLL_len14.png"),
+  p_alt,
+  width = 7,
+  height = 3.2,
+  dpi = 130
+)
+
+p_alt
 ```

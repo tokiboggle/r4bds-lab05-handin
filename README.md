@@ -1,7 +1,11 @@
 # Project Contributors
 
-- Name (student id) — GitHub username
-- Add the rest of the group here
+- Bertram B Broe (student id: ______)
+- Tóki (student id: ______) — GitHub: tokiboggle
+- ______ (student id: ______)
+- ______ (student id: ______)
+
+Group number on the hand-in is still XX. Fill that in before uploading to DTU Learn if the TA list has it. Hand in on one course only.
 
 # Lab 5 hand-in
 

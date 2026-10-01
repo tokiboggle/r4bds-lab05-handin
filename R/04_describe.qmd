@@ -8,7 +8,66 @@ editor: visual
 
 Describe the peptides and the CDR3 sequences. Save plots under `results/`.
 
+Lengths are counted on the peptide table before the HLA join, so a peptide isn't counted once per allele.
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(here)
+
+dir.create(here("results"), showWarnings = FALSE)
+
+peptide_data <- read_tsv(here("data", "02_dat_clean.tsv"), show_col_types = FALSE) |>
+  mutate(
+    k_CDR3b = str_length(CDR3b),
+    k_peptide = str_length(peptide)
+  )
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3.4
+#| fig-cap: "CDR3b lengths after splitting the peptide list."
+
+p_cdr3 <- peptide_data |>
+  ggplot(aes(x = k_CDR3b)) +
+  geom_bar(width = 1, color = "black", fill = "grey") +
+  xlab("CDR3b length") +
+  ylab("Counts") +
+  theme_minimal()
+
+ggsave(
+  here("results", "cdr3_length.png"),
+  p_cdr3,
+  width = 6,
+  height = 3.4,
+  dpi = 120
+)
+
+p_cdr3
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3.4
+#| fig-cap: "Peptide lengths. 9-mers are the common ones."
+
+p_pep <- peptide_data |>
+  ggplot(aes(x = k_peptide)) +
+  geom_bar(width = 1, color = "black", fill = "grey") +
+  xlab("Peptide length") +
+  ylab("Counts") +
+  theme_minimal()
+
+ggsave(
+  here("results", "peptide_length.png"),
+  p_pep,
+  width = 6,
+  height = 3.4,
+  dpi = 120
+)
+
+p_pep
 ```

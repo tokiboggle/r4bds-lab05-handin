@@ -1,17 +1,29 @@
 ---
 title: "Lab 5 Assignment: Group XX"
-author: "Add names and student ids"
+author: "Bertram B Broe (student id: ______); Tóki (GitHub: tokiboggle, student id: ______); ______ (student id: ______); ______ (student id: ______)"
 format:
   html:
     embed-resources: true
 editor: visual
 ---
 
-*Before upload: put the real group number, names, and student ids in the header, render this file, and zip the html. Hand in on one course only.*
+Group number is still XX, we never got it written down from the TA list. Other student ids are blank on purpose until someone fills them in. Hand in on one course only.
+
+The longer version of the wrangling sits in `R/`. This file is the short report: only the steps we actually needed for the two questions.
 
 # Background
 
+This section is the lab page. We only fixed a few typos, we didn't rewrite the biology.
+
+In the early 20s, the world was hit by the coronavirus disease 2019 (COVID-19) pandemic. The pandemic was caused by severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2). In Denmark, the virus first confirmed case was on 27 February 2020.
+
+While initially very little was known about the SARS-CoV-2 virus, we did know the general pathology of viruses. Briefly, the virus invades the cells and hijacks the intra-cellular machinery. Using the hijacked machinery, components for new virus particles are produced, eventually being packed into the viral envelope and released from the infected cell. Some of these components, viral proteins, are broken down into smaller fragments called peptides by the proteasome. These peptides are transported into the endoplasmic reticulum by the Transporter Associated with antigen Processing (TAP) protein complex. Here, they are aided by chaperones bound to the Major Histocompatibility Complex class I (MHC-I) and then across the Golgi apparatus they finally get displayed on the surface of the cells. Note, in humans, MHC is also called Human Leukocyte Antigen (HLA) and represents the most diverse genes. Each of us has a total of 6 HLA-alleles, 3 from the maternal and 3 from the paternal side. These are further divided into 3 classes HLA-A, HLA-B and HLA-C and the combination of these constitute the HLA-haplotype for an individual. Once the peptide is bound to the MHC class I at the cell surface and exposed, the MHC-I peptide complex can be recognised by CD8+ Cytotoxic T-Lymphocytes (CTLs) via the T-cell Receptor (TCR). If a cell displays peptides of viral origin, the CTL gets activated and via a cascade induces apoptosis (programmed cell death) of the infected cell (McCarthy and Weinberg 2015).
+
+The data we are working with contains sequenced T-cell receptors, viral antigens, HLA-haplotypes and clinical meta data for a cohort: "A large-scale database of T-cell receptor beta (TCRβ) sequences and binding associations from natural and synthetic exposure to SARS-CoV-2" (Nolan et al. 2020). We used `peptide-detail-ci.csv` and `subject-metadata.csv` from ImmuneCODE-MIRA-Release002.1.
+
 # Aim
+
+Two questions, same as in the lab:
 
 1. What characterises the peptides binding to the HLAs?
 2. What characterises the T-cell receptors binding to the peptide–HLA complexes?
@@ -20,15 +32,231 @@ editor: visual
 
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(here)
+library(ggseqlogo)
 ```
 
 # Load data
 
+```{r}
+#| message: false
+#| warning: false
+
+peptide_data <- read_csv(
+  here("data", "_raw", "peptide-detail-ci.csv"),
+  na = "N/A"
+)
+
+meta_data <- read_csv(
+  here("data", "_raw", "subject-metadata.csv"),
+  na = "N/A"
+)
+
+n_subjects <- nrow(meta_data)
+n_meta_cols <- ncol(meta_data)
+n_tcr <- nrow(peptide_data)
+```
+
+`N/A` in the files is a real missing value, not the letters N and A. `read_csv()` renames the duplicated HLA headers, so the first HLA-A column becomes `HLA-A...9`, the second `HLA-A...10`, and the same thing for B and C. Annoying, but it's the same six class I columns.
+
 # Data description
+
+The subject table has `r n_subjects` rows and `r n_meta_cols` columns. One row is one experiment / subject. The columns clump together: cohort, age, gender and race are the clinical stuff, then HLA class I (A, B and C, two copies each) and a bunch of class II genes (DPA1, DPB1, and so on) that we don't use for these questions.
+
+On the HLA class I part the table is wide. `A1`, `A2`, `B1`, `B2`, `C1` and `C2` are six columns of the same kind of thing (an allele). Bertram had them side by side in the exercises and still kind of thinks of that as the genotype, two A's, two B's, two C's, which is how the haplotype is written. Tóki called it wide the whole time, because the allele is the value we want in one column. We didn't really settle the wording. We pivoted to long anyway, otherwise you can't join a TCR onto one allele at a time.
+
+The peptide file is the big one: `r n_tcr` TCR rows. `TCR BioIdentity` is CDR3b, V gene and J gene glued with `+`. `Amino Acids` is a comma-separated list of peptides, and the longest list we hit has 13. A lot of rows have fewer, so when we split into 13 columns the extra ones are just empty. That's expected, not a broken file.
+
+```{r}
+#| warning: false
+
+peptide_data <- peptide_data |>
+  select(Experiment, `TCR BioIdentity`, `Amino Acids`) |>
+  separate(
+    col = `TCR BioIdentity`,
+    into = c("CDR3b", "V_gene", "J_gene"),
+    sep = "\\+"
+  ) |>
+  separate(
+    col = `Amino Acids`,
+    into = str_c("peptide_", seq(1, 13)),
+    sep = ",",
+    fill = "right"
+  ) |>
+  pivot_longer(
+    cols = str_c("peptide_", seq(1, 13)),
+    names_to = "peptide_n",
+    values_to = "peptide"
+  ) |>
+  filter(!is.na(peptide), peptide != "") |>
+  filter(
+    str_detect(CDR3b, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE),
+    str_detect(peptide, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE)
+  ) |>
+  mutate(
+    k_CDR3b = str_length(CDR3b),
+    k_peptide = str_length(peptide)
+  ) |>
+  select(-peptide_n)
+
+top_cdr3 <- as.integer(names(sort(table(peptide_data$k_CDR3b), decreasing = TRUE))[1])
+top_pep <- as.integer(names(sort(table(peptide_data$k_peptide), decreasing = TRUE))[1])
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3.2
+#| fig-cap: "How long the peptides are. Nine is the bar that sticks up."
+
+peptide_data |>
+  ggplot(aes(x = k_peptide)) +
+  geom_bar(width = 1, color = "black", fill = "grey") +
+  xlab("Peptide length") +
+  ylab("Counts") +
+  theme_minimal()
+```
+
+```{r}
+#| fig-width: 6
+#| fig-height: 3.2
+#| fig-cap: "CDR3b lengths. Fifteen is the most common, fourteen is close."
+
+peptide_data |>
+  ggplot(aes(x = k_CDR3b)) +
+  geom_bar(width = 1, color = "black", fill = "grey") +
+  xlab("CDR3b length") +
+  ylab("Counts") +
+  theme_minimal()
+```
+
+So the peptide length we actually care about later is `r top_pep`, and for the CDR3 logo we followed the exercise and took length `r top_cdr3`.
 
 # Analysis
 
 ## Peptides
 
+Metadata next. Class II is dropped. The six class I columns get normal names and then `pivot_longer()`, which is the bit that answers the wide-format question: after this, `Gene` says which slot (A1, C2, ...) and `Allele` is the sequence name. We only keep field 1 and field 2 of the HLA name (`B*51:01:02` becomes `B51:01`) and strip the `*`.
+
+```{r}
+meta_data <- meta_data |>
+  rename(
+    A1 = `HLA-A...9`,
+    A2 = `HLA-A...10`,
+    B1 = `HLA-B...11`,
+    B2 = `HLA-B...12`,
+    C1 = `HLA-C...13`,
+    C2 = `HLA-C...14`
+  ) |>
+  select(Experiment, A1, A2, B1, B2, C1, C2) |>
+  pivot_longer(
+    cols = c(A1, A2, B1, B2, C1, C2),
+    names_to = "Gene",
+    values_to = "Allele"
+  ) |>
+  filter(!is.na(Allele), Allele != "") |>
+  mutate(Allele_F_1_2 = str_extract(Allele, "[ABC]\\*[0-9]{2}:[0-9]{2}")) |>
+  filter(!is.na(Allele_F_1_2)) |>
+  mutate(Allele = str_replace(Allele_F_1_2, "\\*", "")) |>
+  select(Experiment, Allele) |>
+  distinct()
+```
+
+The two tables share `Experiment`. Joining on it blows up, because one experiment has many TCRs and up to six alleles, so it is a many-to-many join. The lab already warns about the hole in the table: a row says this CDR3 showed up with this peptide in this subject, and the subject has a haplotype. It does not say which of the six alleles presented that peptide. We joined anyway.
+
+```{r}
+peptide_meta_data <- peptide_data |>
+  left_join(meta_data, by = "Experiment", relationship = "many-to-many")
+```
+
+For the logos we keep unique 9-mers. Counting the same peptide once per TCR would just reward peptides that happen to have lots of receptors, and the question is about the peptide itself.
+
+```{r}
+#| warning: false
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "A*02:01, unique peptides of length 9."
+
+a02_peptides <- peptide_meta_data |>
+  filter(Allele == "A02:01", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+ggseqlogo(a02_peptides, seq_type = "aa")
+```
+
+```{r}
+#| warning: false
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "B*07:02, unique peptides of length 9. We expected this one to look more different."
+
+b07_peptides <- peptide_meta_data |>
+  filter(Allele == "B07:02", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+ggseqlogo(b07_peptides, seq_type = "aa")
+```
+
+The B\*07:02 logo looks almost the same as the A\*02:01 one. We expected proline at position 2 (that was Tóki, from the other immuno course) and it isn't there. Bertram's guess is that the join mixes alleles, since the table doesn't say which allele presented the peptide, but we didn't prove that and Tóki wanted the explanation cut. So it's a side note, not the result.
+
+Position 9 also has tyrosine under the leucine, its visible on both logos. We left Y out of the answer. Bertram's exercise note stopped at leucine then valine, and adding Y made the sentence look like we had changed what we were claiming.
+
+Positions 2 and 9 are the most conserved, the letters there are mostly leucine and then valine, and the middle of the peptide is more variable.
+
 ## CDR3 sequences
+
+Same joined table. The exercise logo is CDR3b length 15, allele A\*02:01, peptide `LLFLVLIML`. Bertram didn't `distinct()` the CDR3s in the exercise code, and that version already showed the same ends, so it wasn't wrong. We still distinct them here. After the join the same CDR3 can sit on several rows, and if those copies go into the logo the stacks get taller just because the row was repeated. So each sequence counts once. The shape doesn't change.
+
+```{r}
+#| warning: false
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "CDR3b, length 15, A*02:01, peptide LLFLVLIML."
+
+cdr3_main <- peptide_meta_data |>
+  filter(
+    k_CDR3b == 15,
+    Allele == "A02:01",
+    peptide == "LLFLVLIML"
+  ) |>
+  distinct(CDR3b) |>
+  pull(CDR3b)
+
+ggseqlogo(cdr3_main, seq_type = "aa")
+```
+
+The start of that logo is CASS and the end is F, often with EQY just before it. The V segment writes the start and the J segment ends on F, which is why those stacks are tall even when the peptide changes. That is the genes, not an anchor motif like positions 2 and 9 on the peptides. The middle is the junction, where the segments were joined. The letters there are all over the place, a lot of glycine, and that stretch is the one that contacts the peptide–HLA complex.
+
+We only tried one other combination. Length 14, same allele, peptide `YLQPRTFLL`. Fewer receptors, so the logo is jumpier.
+
+```{r}
+#| warning: false
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "One alternate: CDR3b length 14, A*02:01, YLQPRTFLL."
+
+cdr3_alt <- peptide_meta_data |>
+  filter(
+    k_CDR3b == 14,
+    Allele == "A02:01",
+    peptide == "YLQPRTFLL"
+  ) |>
+  distinct(CDR3b) |>
+  pull(CDR3b)
+
+ggseqlogo(cdr3_alt, seq_type = "aa")
+```
+
+It does change. The tail looks more like ELFF than EQYF, so a different J, and the letters before that move around. The ends are still the pinned part.
+
+The CDR3 ends are fixed by the V and J segments, and the middle junction is variable and contacts the peptide-HLA complex.
+
+# References
+
+McCarthy, Mary K., and Jason B. Weinberg. 2015. "The Immunoproteasome and Viral Infection: A Complex Regulator of Inflammation." Frontiers in Microbiology 6. <https://doi.org/10.3389/fmicb.2015.00021>.
+
+Nolan, Sean, et al. 2020. "A large-scale database of T-cell receptor beta (TCRβ) sequences and binding associations from natural and synthetic exposure to SARS-CoV-2." <https://doi.org/10.21417/ADPT2020COVID>.

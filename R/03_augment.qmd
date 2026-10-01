@@ -8,7 +8,42 @@ editor: visual
 
 Add the variables the analysis needs and write `data/03_dat_aug.tsv`.
 
+Allele names get cut down to the first two fields (`A*02:01:01` becomes `A02:01`) and the asterisk is removed so it doesn't fight the regex later. Then the peptides are joined to the alleles on `Experiment`.
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(here)
+
+peptide_data <- read_tsv(here("data", "02_dat_clean.tsv"), show_col_types = FALSE)
+meta_data <- read_tsv(here("data", "02_dat_clean_meta.tsv"), show_col_types = FALSE)
+```
+
+```{r}
+peptide_data <- peptide_data |>
+  mutate(
+    k_CDR3b = str_length(CDR3b),
+    k_peptide = str_length(peptide)
+  )
+
+meta_data <- meta_data |>
+  mutate(Allele_F_1_2 = str_extract(Allele, "[ABC]\\*[0-9]{2}:[0-9]{2}")) |>
+  filter(!is.na(Allele_F_1_2)) |>
+  mutate(Allele = str_replace(Allele_F_1_2, "\\*", "")) |>
+  select(Experiment, Allele) |>
+  distinct()
+```
+
+```{r}
+# Experiment is repeated on both sides (many TCRs, up to six alleles)
+peptide_meta_data <- peptide_data |>
+  left_join(meta_data, by = "Experiment", relationship = "many-to-many")
+
+peptide_meta_data |> slice_head(n = 5)
+```
+
+```{r}
+write_tsv(peptide_meta_data, here("data", "03_dat_aug.tsv"))
 ```
