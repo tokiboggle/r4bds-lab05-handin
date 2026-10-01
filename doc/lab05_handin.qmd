@@ -1,17 +1,27 @@
 ---
-title: "Lab 5 Assignment: Group XX"
-author: "Add names and student ids"
+title: "Lab 5 Assignment: Group 21"
+author:
+  - Bertram B Broe
+  - Tóki / tokiboggle
+  - Name (student id)
+  - Name (student id)
 format:
   html:
     embed-resources: true
 editor: visual
 ---
 
-*Before upload: put the real group number, names, and student ids in the header, render this file, and zip the html. Hand in on one course only.*
+*Before upload: add the remaining names and student ids, render this file, and zip the html. Hand in on one course only.*
 
 # Background
 
+A viral peptide is a short scrap of a virus protein — basically a tiny leftover piece after the cell breaks the virus down. Those scraps get shown on the cell surface by MHC class I (Major Histocompatibility Complex class I), the display holders cells use for this job. In people those holders are also called HLA (Human Leukocyte Antigen). A CD8 T cell — a killer white blood cell — can recognize that peptide–HLA pair with its TCR (T-cell receptor), the sensor on the T cell that reads the name tag, especially CDR3 (complementarity-determining region 3), the sticky middle bit of the TCR that actually touches the pair. If the scrap looks viral, the T cell can tell the infected cell to die. That’s why we care.
+
+We’re using the ImmuneCODE MIRA class I tables (Nolan et al. 2020), which link SARS-CoV-2 peptides to those TCRs and to each person’s HLA set, to ask what the peptides look like and what the TCRs look like when they show up together.
+
 # Aim
+
+Two questions, that’s it:
 
 1. What characterises the peptides binding to the HLAs?
 2. What characterises the T-cell receptors binding to the peptide–HLA complexes?
@@ -20,15 +30,147 @@ editor: visual
 
 ```{r}
 #| message: false
-
+library(tidyverse)
+library(ggseqlogo)
 ```
 
 # Load data
 
+The class I MIRA tables from Nolan et al. 2020. `peptide-detail-ci.csv` is the TCR–peptide hits. `subject-metadata.csv` is each person plus their HLA set. We join them on `Experiment`.
+
+```{r}
+#| message: false
+peptide_raw <- read_csv(
+  "data/_raw/peptide-detail-ci.csv",
+  na = c("", "n/a", "N/A", "NA")
+)
+
+meta_raw <- read_csv(
+  "data/_raw/subject-metadata.csv",
+  na = c("", "n/a", "N/A", "NA")
+)
+```
+
 # Data description
+
+`peptide_raw` has one row per TCR hit, but the peptide column can hold several scraps in one cell, comma-separated. The TCR name is also a mash-up: CDR3b, then the V gene, then the J gene.
+
+`meta_raw` has the people. We only keep class I holders (HLA-A, HLA-B, HLA-C). Each person has two copies of each, so we fold those into one `Allele` column and trim the names down to the usual A02:01-style label.
+
+Then we stick the tables together on `Experiment`. One honest limit up front: this only says “this person had this HLA in their set.” It does not prove which holder actually showed the peptide. That matters later.
+
+```{r}
+#| message: false
+aa_ok <- "ARNDCQEGHILKMFPSTWYV"
+
+peptide_data <- peptide_raw |>
+  select(`TCR BioIdentity`, Experiment, `Amino Acids`) |>
+  separate(
+    `TCR BioIdentity`,
+    into = c("CDR3b", "V_gene", "J_gene"),
+    sep = "\\+",
+    extra = "merge",
+    fill = "right"
+  ) |>
+  separate_rows(`Amino Acids`, sep = ",") |>
+  rename(peptide = `Amino Acids`) |>
+  filter(
+    !is.na(CDR3b),
+    !is.na(peptide),
+    !str_detect(CDR3b, "unproductive"),
+    !str_detect(CDR3b, str_c("[^", aa_ok, "]")),
+    !str_detect(peptide, str_c("[^", aa_ok, "]"))
+  ) |>
+  mutate(
+    k_CDR3b = str_length(CDR3b),
+    k_peptide = str_length(peptide)
+  ) |>
+  distinct()
+
+meta_data <- meta_raw |>
+  select(Experiment, matches("^HLA-[ABC]")) |>
+  rename(
+    A1 = `HLA-A...9`,
+    A2 = `HLA-A...10`,
+    B1 = `HLA-B...11`,
+    B2 = `HLA-B...12`,
+    C1 = `HLA-C...13`,
+    C2 = `HLA-C...14`
+  ) |>
+  pivot_longer(A1:C2, names_to = "copy", values_to = "Allele") |>
+  filter(!is.na(Allele), Allele != "") |>
+  mutate(
+    Allele = Allele |>
+      str_replace_all("\\*", "") |>
+      str_replace("^([ABC])([0-9]{2}:[0-9]{2}).*$", "\\1\\2")
+  ) |>
+  select(Experiment, Allele) |>
+  distinct()
+
+peptide_meta_data <- peptide_data |>
+  inner_join(meta_data, by = "Experiment", relationship = "many-to-many") |>
+  distinct()
+```
 
 # Analysis
 
 ## Peptides
 
+We took unique 9-mers from people who carry A02:01, and the same for B07:02. Nine is the usual scrap length for these holders. The plot is a sequence logo: tall letters are the amino acids that keep showing up at that spot.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+#| fig-cap: "Unique 9-mer peptides from people who carry HLA-A02:01."
+#| warning: false
+a02_9mers <- peptide_meta_data |>
+  filter(Allele == "A02:01", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+ggseqlogo(a02_9mers, seq_type = "aa")
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+#| fig-cap: "Unique 9-mer peptides from people who carry HLA-B07:02."
+#| warning: false
+b07_9mers <- peptide_meta_data |>
+  filter(Allele == "B07:02", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+ggseqlogo(b07_9mers, seq_type = "aa")
+```
+
+What jumps out is not the middle. Positions 2 and 9 do the work. Position 2 likes leucine. Position 9 likes oily leftovers — leucine, valine, tyrosine. Those two spots are the feet that sit in the holder. The middle of the scrap can wander.
+
+The two logos also look almost the same. That is the haplotype caveat again: we tagged every peptide with every class I allele the person had. So this is “scraps from people who own A02:01,” not “scraps we watched A02:01 hold.” Still, the two-point grip is the thing that characterises the peptides.
+
 ## CDR3 sequences
+
+Same idea, now for the TCR side. We kept CDR3b sequences of length 15 that show up with A02:01 and the peptide LLFLVLIML.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 3
+#| fig-cap: "Length-15 CDR3b sequences seen with A02:01 and peptide LLFLVLIML."
+#| warning: false
+cdr3_15 <- peptide_meta_data |>
+  filter(
+    Allele == "A02:01",
+    k_CDR3b == 15,
+    peptide == "LLFLVLIML"
+  ) |>
+  distinct(CDR3b) |>
+  pull(CDR3b)
+
+ggseqlogo(cdr3_15, seq_type = "aa")
+```
+
+The ends are boring on purpose. They come with the V and J gene pieces, so you get CASS at the start and a phenylalanine at the end, often with EQY or similar just before it. The middle is the junction — that is the bit that actually leans on the peptide–HLA pair, and it is much more mixed.
+
+Same caveat as above: we know the person had A02:01. We do not know that A02:01 was the holder for LLFLVLIML.
+
+So: peptides are characterised by a two-point grip (leucine at 2, something oily at 9). TCRs are characterised by fixed V/J ends and a wiggly middle that reads the pair.
