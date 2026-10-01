@@ -5,7 +5,7 @@
 - ______ (student id: ______)
 - ______ (student id: ______)
 
-Group number on the hand-in is still XX. Fill that in before uploading to DTU Learn if the TA list has it. Hand in on one course only.
+Group 21. Other names and student ids are still blank. Hand in on one course only.
 
 # Lab 5 hand-in
 
