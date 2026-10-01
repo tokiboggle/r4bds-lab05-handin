@@ -8,7 +8,37 @@ editor: visual
 
 Read the two raw files from `data/_raw/` and write `data/01_dat_load.tsv` and `data/01_dat_load_meta.tsv`. Leave the raw files unchanged.
 
+`N/A` is used for missing clinical fields. Empty HLA cells are just blank strings, those stay in until cleaning. `read_csv()` also renames the duplicated HLA columns (`HLA-A`, `HLA-A`, ...) to `HLA-A...9` and so on.
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(here)
+
+dir.create(here("data"), showWarnings = FALSE)
+```
+
+```{r}
+#| message: false
+#| warning: false
+
+peptide_data <- read_csv(
+  here("data", "_raw", "peptide-detail-ci.csv"),
+  na = "N/A"
+)
+
+meta_data <- read_csv(
+  here("data", "_raw", "subject-metadata.csv"),
+  na = "N/A"
+)
+```
+
+```{r}
+write_tsv(peptide_data, here("data", "01_dat_load.tsv"))
+write_tsv(meta_data, here("data", "01_dat_load_meta.tsv"))
+
+peptide_data |> slice_head(n = 3)
+meta_data |> slice_head(n = 3)
 ```

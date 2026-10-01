@@ -1,7 +1,11 @@
 # Project Contributors
 
-- Name (student id) — GitHub username
-- Add the rest of the group here
+- Bertram B Broe (student id: ______)
+- Tóki (student id: ______) — GitHub: tokiboggle
+- ______ (student id: ______)
+- ______ (student id: ______)
+
+Group 21. Other names and student ids are still blank. Hand in on one course only.
 
 # Lab 5 hand-in
 

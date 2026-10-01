@@ -1,34 +1,187 @@
 ---
-title: "Lab 5 Assignment: Group XX"
-author: "Add names and student ids"
+title: "Lab 5 Assignment: Group 21"
+author:
+  - "Bertram B Broe (student id: ______)"
+  - "Tóki / tokiboggle (student id: ______)"
+  - "______ (student id: ______)"
+  - "______ (student id: ______)"
 format:
   html:
     embed-resources: true
 editor: visual
 ---
 
-*Before upload: put the real group number, names, and student ids in the header, render this file, and zip the html. Hand in on one course only.*
+*Fill in the blank student ids before upload. Render and zip the html for DTU Learn.*
 
 # Background
+
+Viral peptides get shown on the cell surface by MHC class I (HLA-A/B/C). CD8 T cells can then recognise the peptide–HLA complex via the TCR, especially the CDR3β loop. We used the ImmuneCODE MIRA class I tables (Nolan et al. 2020): `peptide-detail-ci.csv` and `subject-metadata.csv`.
 
 # Aim
 
 1. What characterises the peptides binding to the HLAs?
 2. What characterises the T-cell receptors binding to the peptide–HLA complexes?
 
-# Load libraries
+# Methods (short)
+
+We loaded the two tables with `tidyverse` / `here`, kept class I alleles only, split `TCR BioIdentity` into CDR3b + V/J, exploded the comma-separated peptides into one row per peptide, dropped invalid amino-acid letters, and added sequence lengths. Alleles were cleaned to field 1+2 (e.g. `A02:01`) and joined to the peptide table on `Experiment`. Full step-by-step wrangling is in the group exercise file / `R/` scripts; here we only keep what we need for the two questions. Logos use `ggseqlogo`.
 
 ```{r}
+#| label: setup
 #| message: false
+#| warning: false
 
+library("tidyverse")
+library("here")
+library("ggseqlogo")
+
+# Hand-in repo keeps raw files under data/_raw/ (gitignored).
+# Use .gz if present, else the plain csv.
+pep_gz <- here("data", "_raw", "peptide-detail-ci.csv.gz")
+pep_csv <- here("data", "_raw", "peptide-detail-ci.csv")
+peptide_data <- read_csv(
+  if (file.exists(pep_gz)) pep_gz else pep_csv,
+  show_col_types = FALSE
+)
+meta_data <- read_csv(
+  here("data", "_raw", "subject-metadata.csv"),
+  na = "N/A",
+  show_col_types = FALSE
+)
+
+meta_data <- meta_data |>
+  select(-starts_with("D")) |>
+  rename(
+    A1 = `HLA-A...9`,
+    A2 = `HLA-A...10`,
+    B1 = `HLA-B...11`,
+    B2 = `HLA-B...12`,
+    C1 = `HLA-C...13`,
+    C2 = `HLA-C...14`
+  ) |>
+  select(Experiment, A1, A2, B1, B2, C1, C2) |>
+  pivot_longer(cols = c(A1, A2, B1, B2, C1, C2),
+               names_to = "Gene",
+               values_to = "Allele") |>
+  mutate(Allele = str_sub(Allele, 1, 7)) |>
+  mutate(Allele = str_remove(Allele, "\\*")) |>
+  filter(Allele != "", !is.na(Allele)) |>
+  select(Experiment, Allele) |>
+  distinct()
+
+peptide_names <- str_c("peptide_", seq(1, 13))
+
+peptide_data <- peptide_data |>
+  select(`TCR BioIdentity`, Experiment, `Amino Acids`) |>
+  separate(col = `TCR BioIdentity`,
+           into = c("CDR3b", "V_gene", "J_gene"),
+           sep = "\\+") |>
+  separate(`Amino Acids`,
+           into = peptide_names,
+           sep = ",",
+           fill = "right") |>
+  pivot_longer(cols = starts_with("peptide_"),
+               names_to = "peptide_n",
+               values_to = "peptide") |>
+  select(-peptide_n) |>
+  drop_na(peptide) |>
+  distinct() |>
+  filter(
+    str_detect(CDR3b, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE),
+    str_detect(peptide, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE)
+  ) |>
+  mutate(
+    k_CDR3b = str_length(CDR3b),
+    k_peptide = str_length(peptide)
+  )
+
+peptide_meta_data <- peptide_data |>
+  left_join(meta_data, by = "Experiment",
+            relationship = "many-to-many") |>
+  distinct()
 ```
-
-# Load data
-
-# Data description
 
 # Analysis
 
-## Peptides
+## What characterises the peptides binding to the HLAs?
 
-## CDR3 sequences
+First we just looked at how long the peptides are:
+
+```{r}
+#| label: peptide-length
+#| fig-cap: "Peptide lengths in the tidy table. Mode is 9."
+
+peptide_data |>
+  ggplot(aes(x = k_peptide)) +
+  geom_bar(color = "black", alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "Peptide length", y = "Counts")
+```
+
+Most peptides are length 9 (then 10). That matches what you usually hear for MHC-I, so the logos below are all 9-mers.
+
+```{r}
+#| label: logo-a0201
+#| fig-cap: "Sequence logo of unique 9-mer peptides linked to allele A02:01."
+#| warning: false
+#| message: false
+
+peptide_meta_data |>
+  filter(Allele == "A02:01", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide) |>
+  ggseqlogo()
+```
+
+```{r}
+#| label: logo-b0702
+#| fig-cap: "Same idea for B07:02 (unique 9-mers)."
+#| warning: false
+#| message: false
+
+peptide_meta_data |>
+  filter(Allele == "B07:02", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide) |>
+  ggseqlogo()
+```
+
+**Answer.** The logos make it kinda clear that **positions 2 and 9** matter most for binding. Both have taller stacks than the middle. Position 2 is mostly **Leu (L)**, and position 9 is a hydrophobic pile with **Leu and Val** on top (plus some Y/F etc.). Positions 1 and 3–8 look pretty flat / mixed, so they don’t seem to drive the HLA binding as much.
+
+The A02:01 and B07:02 logos look almost the same. That is a bit weird if you know classical B\*07:02 likes Pro at P2 — here we don’t really see that. One reason (also mentioned in the lab): the data only tells us the subject’s **haplotype**, not which allele actually presented the peptide. So when we filter on `B07:02` we also pull in peptides that might have been presented by another allele in the same person. Length and the “P2 + P9 anchors” story still show up; a clean allele-specific motif maybe doesn’t.
+
+## What characterises the T-cell receptors binding to the peptide–HLA complexes?
+
+CDR3b lengths first:
+
+```{r}
+#| label: cdr3-length
+#| fig-cap: "CDR3b lengths. Mode is 15."
+
+peptide_data |>
+  ggplot(aes(x = k_CDR3b)) +
+  geom_bar(color = "black", alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "CDR3b length", y = "Counts")
+```
+
+Most common CDR3b length is **15**, so we picked that for the logo, together with allele `A02:01` and one peptide (`LLFLVLIML`), like in the exercises.
+
+```{r}
+#| label: logo-cdr3
+#| fig-cap: "CDR3b logo for length 15, A02:01, peptide LLFLVLIML."
+#| warning: false
+#| message: false
+
+peptide_meta_data |>
+  filter(k_CDR3b == 15,
+         Allele == "A02:01",
+         peptide == "LLFLVLIML") |>
+  distinct(CDR3b) |>
+  pull(CDR3b) |>
+  ggseqlogo()
+```
+
+**Answer.** The **ends** of the CDR3b are pretty fixed, and the **middle** is not. You basically always get **C** at the start and something like the **CASS…** stretch from the V gene, and the C-terminus piles up on **F** (from the J gene). In between (roughly positions 5–10) the letters are all over the place — that’s the junction, which is where a lot of the variability comes from when different TCRs contact the same peptide–HLA. So: ends set by V/J, middle junction variable.
+
+Same haplotype caveat as above: we know the CDR3b was linked to that peptide in a subject who carries A02:01, not that A02:01 was proven to be the presenting allele.

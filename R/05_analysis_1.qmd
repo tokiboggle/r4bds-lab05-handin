@@ -8,7 +8,66 @@ editor: visual
 
 What characterises the peptides binding to the HLAs? Save the plot under `results/`.
 
+Same idea as in the exercises: unique 9-mer peptides for `A02:01`, then the same thing for `B07:02`.
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(ggseqlogo)
+library(here)
+
+dir.create(here("results"), showWarnings = FALSE)
+
+peptide_meta_data <- read_tsv(
+  here("data", "03_dat_aug.tsv"),
+  show_col_types = FALSE
+)
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "Unique 9-mer peptides on experiments typed as A02:01."
+
+a02_peptides <- peptide_meta_data |>
+  filter(Allele == "A02:01", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+p_a02 <- ggseqlogo(a02_peptides, seq_type = "aa")
+
+ggsave(
+  here("results", "logo_peptide_A0201.png"),
+  p_a02,
+  width = 7,
+  height = 3.2,
+  dpi = 130
+)
+
+p_a02
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 3.2
+#| fig-cap: "Unique 9-mer peptides on experiments typed as B07:02."
+
+b07_peptides <- peptide_meta_data |>
+  filter(Allele == "B07:02", k_peptide == 9) |>
+  distinct(peptide) |>
+  pull(peptide)
+
+p_b07 <- ggseqlogo(b07_peptides, seq_type = "aa")
+
+ggsave(
+  here("results", "logo_peptide_B0702.png"),
+  p_b07,
+  width = 7,
+  height = 3.2,
+  dpi = 130
+)
+
+p_b07
 ```

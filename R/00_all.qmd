@@ -11,4 +11,24 @@ Run the whole project from the raw files through both analyses.
 ```{r}
 #| message: false
 
+library(here)
+
+parts <- c(
+  "01_load.qmd",
+  "02_clean.qmd",
+  "03_augment.qmd",
+  "04_describe.qmd",
+  "05_analysis_1.qmd",
+  "06_analysis_2.qmd"
+)
+
+for (part in parts) {
+  status <- system2(
+    "quarto",
+    c("render", here("R", part))
+  )
+  if (!identical(status, 0L)) {
+    stop("Render failed for ", part)
+  }
+}
 ```

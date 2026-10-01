@@ -8,7 +8,73 @@ editor: visual
 
 Turn the loaded tables into tidy tables and write `data/02_dat_clean.tsv` and `data/02_dat_clean_meta.tsv`.
 
+Peptide rows are not tidy yet: several peptides sit in one comma-separated cell, and the CDR3, V gene and J gene are packed into `TCR BioIdentity`. The HLA columns `A1`–`C2` are wide (one column per allele copy), so the metadata gets pivoted longer.
+
 ```{r}
 #| message: false
+#| warning: false
 
+library(tidyverse)
+library(here)
+
+peptide_data <- read_tsv(here("data", "01_dat_load.tsv"), show_col_types = FALSE)
+meta_data <- read_tsv(here("data", "01_dat_load_meta.tsv"), show_col_types = FALSE)
+```
+
+```{r}
+#| warning: false
+
+# most rows have fewer than 13 peptides; separate() fills the rest with NA
+peptide_data <- peptide_data |>
+  select(Experiment, `TCR BioIdentity`, `Amino Acids`) |>
+  separate(
+    col = `TCR BioIdentity`,
+    into = c("CDR3b", "V_gene", "J_gene"),
+    sep = "\\+"
+  ) |>
+  separate(
+    col = `Amino Acids`,
+    into = str_c("peptide_", seq(1, 13)),
+    sep = ",",
+    fill = "right"
+  ) |>
+  pivot_longer(
+    cols = str_c("peptide_", seq(1, 13)),
+    names_to = "peptide_n",
+    values_to = "peptide"
+  ) |>
+  filter(!is.na(peptide), peptide != "") |>
+  filter(
+    str_detect(CDR3b, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE),
+    str_detect(peptide, "[^ARNDCQEGHILKMFPSTWYV]", negate = TRUE)
+  ) |>
+  select(-peptide_n)
+
+peptide_data |> slice_head(n = 5)
+```
+
+```{r}
+meta_data <- meta_data |>
+  rename(
+    A1 = `HLA-A...9`,
+    A2 = `HLA-A...10`,
+    B1 = `HLA-B...11`,
+    B2 = `HLA-B...12`,
+    C1 = `HLA-C...13`,
+    C2 = `HLA-C...14`
+  ) |>
+  select(Experiment, Cohort, Age, Gender, Race, A1, A2, B1, B2, C1, C2) |>
+  pivot_longer(
+    cols = c(A1, A2, B1, B2, C1, C2),
+    names_to = "Gene",
+    values_to = "Allele"
+  ) |>
+  filter(!is.na(Allele), Allele != "")
+
+meta_data |> slice_head(n = 8)
+```
+
+```{r}
+write_tsv(peptide_data, here("data", "02_dat_clean.tsv"))
+write_tsv(meta_data, here("data", "02_dat_clean_meta.tsv"))
 ```
